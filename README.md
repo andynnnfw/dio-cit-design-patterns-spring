@@ -172,6 +172,95 @@ cd dio-cit-design-patterns-spring
 A API sobe em `http://localhost:8080`.
 O console do H2 fica em `http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:mem:clientesdb`, usuário `sa`, sem senha).
 
+## Testando com o Insomnia
+
+Com a aplicação rodando em `http://localhost:8080`, abra o [Insomnia](https://insomnia.rest) e siga os passos:
+
+1. Clique em **New Collection** e dê um nome, por exemplo `Design Patterns API`.
+2. Dentro da coleção, clique em **New HTTP Request** para cada requisição abaixo.
+3. Escolha o **método** (GET, POST, PUT ou DELETE), cole a **URL** e, quando houver corpo, vá na aba **Body → JSON** e cole o JSON.
+4. Clique em **Send** e confira a resposta e o status no painel da direita.
+
+### 1. Cadastrar um cliente
+
+- **Método:** `POST`
+- **URL:** `http://localhost:8080/clientes`
+- **Body (JSON):**
+
+```json
+{
+  "nome": "Anderson",
+  "telefone": "11999999999",
+  "endereco": { "cep": "01001000" }
+}
+```
+
+Resultado esperado: **`201 Created`** com o endereço preenchido automaticamente pelo ViaCEP.
+
+### 2. Listar todos os clientes
+
+- **Método:** `GET`
+- **URL:** `http://localhost:8080/clientes`
+
+Resultado esperado: **`200 OK`** com a lista de clientes.
+
+### 3. Buscar um cliente pelo id
+
+- **Método:** `GET`
+- **URL:** `http://localhost:8080/clientes/1`
+
+Resultado esperado: **`200 OK`** com o cliente de id 1.
+
+### 4. Buscar clientes por cidade
+
+- **Método:** `GET`
+- **URL:** `http://localhost:8080/clientes/cidade/São Paulo`
+
+Resultado esperado: **`200 OK`** com os clientes da cidade.
+
+### 5. Atualizar um cliente
+
+- **Método:** `PUT`
+- **URL:** `http://localhost:8080/clientes/1`
+- **Body (JSON):**
+
+```json
+{
+  "nome": "Anderson Melo",
+  "telefone": "11988888888",
+  "endereco": { "cep": "20040002" }
+}
+```
+
+Resultado esperado: **`200 OK`** com o novo endereço (Rio de Janeiro).
+
+### 6. Remover um cliente
+
+- **Método:** `DELETE`
+- **URL:** `http://localhost:8080/clientes/1`
+
+Resultado esperado: **`204 No Content`**.
+
+### 7. Testando os erros
+
+| Teste | Método e URL | Body | Resultado esperado |
+|---|---|---|---|
+| CEP com formato inválido | `POST /clientes` | `{"nome": "Teste", "endereco": {"cep": "123"}}` | `400 Bad Request` |
+| CEP inexistente | `POST /clientes` | `{"nome": "Teste", "endereco": {"cep": "99999999"}}` | `400 Bad Request` |
+| Cliente inexistente | `GET /clientes/999` | - | `404 Not Found` |
+
+Exemplo de resposta de erro (`ProblemDetail`):
+
+```json
+{
+  "type": "about:blank",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "CEP invalido ou nao encontrado: 123",
+  "instance": "/clientes"
+}
+```
+
 ## Autor
 
 **Anderson Melo do Nascimento**
