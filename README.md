@@ -20,6 +20,94 @@ Projeto desenvolvido no desafio *"Design Patterns com Java: Dos Clássicos (GoF)
 | **Strategy** | `ClienteService` → `ClienteServiceImpl` | O controller depende da interface, então a implementação pode ser trocada sem alterar quem a usa. |
 | **Facade** | `ClienteServiceImpl` | Esconde a complexidade de consultar o ViaCEP, reaproveitar endereços e salvar no banco, expondo métodos simples como `inserir(cliente)`. |
 
+## Estrutura do projeto
+
+```
+src/main/java/com/andynn/patterns
+├── DioCitDesignPatternsSpringApplication.java
+├── controller
+│   └── ClienteRestController.java
+├── exception
+│   ├── CepInvalidoException.java
+│   ├── ClienteNaoEncontradoException.java
+│   └── GlobalExceptionHandler.java
+├── model
+│   ├── Cliente.java
+│   └── Endereco.java
+├── repository
+│   ├── ClienteRepository.java
+│   └── EnderecoRepository.java
+└── service
+    ├── ClienteService.java
+    ├── ViaCepService.java
+    └── impl
+        └── ClienteServiceImpl.java
+```
+
+### Aplicação
+
+- **`DioCitDesignPatternsSpringApplication`**: ponto de entrada da aplicação. O `@SpringBootApplication` inicia o Spring e o `@EnableFeignClients` ativa os clients HTTP do OpenFeign.
+
+### `controller`: camada de entrada
+
+- **`ClienteRestController`**: recebe as requisições HTTP em `/clientes` e devolve as respostas com o status correto (`200`, `201`, `204`). Depende apenas da interface `ClienteService`, sem conhecer o ViaCEP nem o banco de dados.
+
+### `model`: entidades
+
+- **`Cliente`**: entidade JPA com `id` gerado automaticamente, `nome`, `telefone` e uma relação `@ManyToOne` com `Endereco` (vários clientes podem compartilhar o mesmo CEP).
+- **`Endereco`**: entidade JPA cujo identificador é o próprio CEP. Os atributos seguem o JSON do ViaCEP, então o mesmo objeto recebe a resposta da API e é salvo no banco.
+
+### `repository`: acesso a dados
+
+- **`ClienteRepository`**: estende `JpaRepository` e ganha o CRUD pronto. O método `findByEnderecoLocalidadeIgnoreCase` é uma *query derivada*: o Spring Data gera a consulta SQL a partir do nome do método.
+- **`EnderecoRepository`**: CRUD de endereços, usado para reaproveitar um CEP já consultado e evitar chamadas repetidas ao ViaCEP.
+
+### `service`: regras de negócio
+
+- **`ClienteService`**: interface que define as operações do sistema (padrão **Strategy**).
+- **`ClienteServiceImpl`**: implementação que concentra a lógica (padrão **Facade**): valida e normaliza o CEP, reaproveita o endereço salvo ou consulta o ViaCEP e salva o cliente.
+- **`ViaCepService`**: interface anotada com `@FeignClient`. O Spring gera a implementação que faz o `GET` em `viacep.com.br/ws/{cep}/json/`, sem precisar escrever código HTTP manualmente.
+
+### `exception`: tratamento de erros
+
+- **`CepInvalidoException`**: lançada quando o CEP não tem 8 dígitos ou não existe no ViaCEP.
+- **`ClienteNaoEncontradoException`**: lançada quando o `id` buscado não existe.
+- **`GlobalExceptionHandler`**: com `@RestControllerAdvice`, centraliza o tratamento dos erros e os converte em respostas `ProblemDetail` (padrão RFC 9457), com status `400` ou `404`.
+
+### `resources`
+
+- **`application.properties`**: configura o banco H2 em memória, o console do H2 e a exibição do SQL no log.
+
+## Fluxo de uma requisição
+
+```
+POST /clientes
+   │
+   ▼
+ClienteRestController
+   │
+   ▼
+ClienteService (Facade)
+   ├── EnderecoRepository: o CEP já está salvo?
+   │      ├── sim → reaproveita o endereço
+   │      └── não → ViaCepService consulta o ViaCEP → salva o endereço
+   └── ClienteRepository: salva o cliente
+   │
+   ▼
+201 Created com o cliente e o endereço completo
+```
+
+## O que aprendi
+
+- Aplicar padrões do GoF (**Singleton**, **Strategy** e **Facade**) em um projeto real.
+- Como o Spring implementa o **Singleton** por meio da inversão de controle e da injeção de dependências pelo construtor.
+- Programar para **interfaces**, deixando o código desacoplado e fácil de evoluir.
+- Consumir APIs externas de forma declarativa com **Spring Cloud OpenFeign**.
+- Usar o **Spring Data JPA**: repositórios, *queries* derivadas e relacionamentos entre entidades.
+- Centralizar o **tratamento de erros** com `@RestControllerAdvice` e `ProblemDetail`.
+- Organizar uma API em **camadas** (controller, service, repository e model).
+- Versionar o projeto com **commits por etapa** no Git.
+
 ## Melhorias em relação ao projeto base
 
 - Campo **telefone** no cliente.
